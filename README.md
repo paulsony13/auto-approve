@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Auto Approve Environment Deployment
-        uses: paulsony13/auto-approve-environment-deployment@v1
+        uses: paulsony13/auto-approve-environment-deployment@v1.0.0
         with:
           environment: production
           repo_access_token: ${{ secrets.GITHUB_TOKEN }}
