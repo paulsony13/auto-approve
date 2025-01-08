@@ -1,0 +1,46 @@
+name: Auto Approve Environment Deployment
+description: Retrieve environment ID and auto-approve pending deployments in GitHub Actions.
+inputs:
+  environment:
+    description: The name of the environment.
+    required: true
+  repo_access_token:
+    description: GitHub token for API access.
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Get Environment ID
+      id: environment-id
+      shell: pwsh
+      run: |
+        $environmentId = ""
+        $url = "https://api.github.com/repos/${{ github.repository }}/environments"
+        $response = Invoke-RestMethod -Uri $url -Method Get -Headers @{
+          Authorization = "Bearer ${{ inputs.repo_access_token }}"
+        }
+        if ($response) {
+          foreach ($environment in $response.environments) {
+            if ($environment.name -eq "${{ inputs.environment }}") {
+              $environmentId = $environment.id
+              break
+            }
+          }
+        }
+        echo "::set-output name=environment_id::$($environmentId)"
+
+    - name: Auto Approve Deployment
+      if: startsWith(inputs.environment, 'production')
+      shell: pwsh
+      run: |
+        $url = "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/pending_deployments"
+        $body = @"
+        {
+          "environment_ids": [ ${{ steps.environment-id.outputs.environment_id }} ],
+          "state": "approved",
+          "comment": "Auto-approved for automation"
+        }
+        "@
+        Invoke-RestMethod -Uri $url -Method POST -Headers @{
+          Authorization = "Bearer ${{ inputs.repo_access_token }}"
+        } -Body $body -ContentType "application/json"
